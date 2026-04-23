@@ -7,35 +7,66 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DB_FILE = path.join(__dirname, 'db.json');
+const DB_FILE = path.resolve(process.cwd(), 'db.json');
+
+console.log(`Starting server with DB_FILE: ${DB_FILE}`);
 
 // Initialize DB file if not exists
-if (!fs.existsSync(DB_FILE)) {
-  const initialData = {
-    products: [
-      { id: 1, sku: 'HD-001', name: 'Heavy Duty Hammer', category: 'Hand Tools', price: 15.99, stockQuantity: 50, unit: 'pcs' },
-      { id: 2, sku: 'HD-002', name: 'Safety Goggles Pro', category: 'Safety', price: 9.50, stockQuantity: 100, unit: 'pcs' },
-      { id: 3, sku: 'HD-003', name: 'Measuring Tape 5m', category: 'Hand Tools', price: 6.75, stockQuantity: 75, unit: 'pcs' },
-      { id: 4, sku: 'HD-004', name: 'Drill Bit Set 12pc', category: 'Power Tools', price: 24.99, stockQuantity: 20, unit: 'set' },
-      { id: 5, sku: 'HD-005', name: 'Galvanized Nails 1kg', category: 'Hardware', price: 4.50, stockQuantity: 200, unit: 'kg' },
-    ],
-    sales: [],
-    settings: {
-      name: "ACE HARDWARE PRO",
-      address: "123 Industrial Ave, Tech City",
-      contact: "(555) 012-3456",
-    }
-  };
+try {
+  if (!fs.existsSync(DB_FILE)) {
+    const initialData = {
+      products: [
+        { id: 1, sku: 'HD-001', name: 'Heavy Duty Hammer', category: 'Hand Tools', price: 15.99, stockQuantity: 50, minStockLevel: 5, unit: 'pcs' },
+        { id: 2, sku: 'HD-002', name: 'Safety Goggles Pro', category: 'Safety', price: 9.50, stockQuantity: 100, minStockLevel: 10, unit: 'pcs' },
+        { id: 3, sku: 'HD-003', name: 'Measuring Tape 5m', category: 'Hand Tools', price: 6.75, stockQuantity: 75, minStockLevel: 5, unit: 'pcs' },
+        { id: 4, sku: 'HD-004', name: 'Drill Bit Set 12pc', category: 'Power Tools', price: 24.99, stockQuantity: 20, minStockLevel: 3, unit: 'set' },
+        { id: 5, sku: 'HD-005', name: 'Galvanized Nails 1kg', category: 'Hardware', price: 4.50, stockQuantity: 200, minStockLevel: 20, unit: 'kg' },
+      ],
+      users: [
+        { id: 1, username: 'admin', password: 'admin123', role: 'admin', name: 'System Administrator' },
+        { id: 2, username: 'cashier', password: 'password123', role: 'cashier', name: 'Junior Cashier' }
+      ],
+      sales: [],
+      settings: {
+        name: "ESCRIN HOLLOWBLOCKS TRADINGS",
+        address: "P5 ZILLOVIA, TALACOGON, AGUSAN DEL SUR",
+        contact: "09510417587",
+      }
+    };
     fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2));
+    console.log('Created initial db.json');
+  }
+} catch (err) {
+  console.error('Failed to initialize DB:', err);
 }
 
 function readDb() {
-  const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
-  if (!data.settings) {
-    data.settings = { name: "ESCRIN HOLLOWBLOCKS TRADINGS", address: "P5 ZILLOVIA, TALACOGON, AGUSAN DEL SUR", contact: "09510417587" };
-    writeDb(data);
+  try {
+    const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
+    let changed = false;
+    if (!data.settings) {
+      data.settings = { 
+        name: "ESCRIN HOLLOWBLOCKS TRADINGS", 
+        address: "P5 ZILLOVIA, TALACOGON, AGUSAN DEL SUR", 
+        contact: "09510417587" 
+      };
+      changed = true;
+    }
+    if (!data.users) {
+      data.users = [
+        { id: 1, username: 'admin', password: 'admin123', role: 'admin', name: 'System Administrator' },
+        { id: 2, username: 'cashier', password: 'password123', role: 'cashier', name: 'Junior Cashier' }
+      ];
+      changed = true;
+    }
+    if (changed) {
+      writeDb(data);
+    }
+    return data;
+  } catch (err) {
+    console.error('Error reading DB:', err);
+    return { products: [], sales: [], settings: {}, users: [] };
   }
-  return data;
 }
 
 function writeDb(data: any) {
@@ -49,6 +80,17 @@ async function startServer() {
 
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+  // Log all requests
+  app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    next();
+  });
+
+  // Health check
+  app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
 
   // API Routes
   app.get('/api/settings', (req, res) => {
@@ -66,6 +108,57 @@ async function startServer() {
   app.get('/api/products', (req, res) => {
     const db = readDb();
     res.json(db.products);
+  });
+
+  // User Authentication & Management
+  app.post('/api/auth/login', (req, res) => {
+    const db = readDb();
+    const { username, password } = req.body;
+    const user = db.users.find((u: any) => u.username === username && u.password === password);
+    
+    if (user) {
+      const { password, ...safeUser } = user;
+      res.json(safeUser);
+    } else {
+      res.status(401).json({ error: 'Invalid username or password' });
+    }
+  });
+
+  app.get('/api/users', (req, res) => {
+    const db = readDb();
+    const sanitizedUsers = db.users.map(({ password, ...u }: any) => u);
+    res.json(sanitizedUsers);
+  });
+
+  app.post('/api/users', (req, res) => {
+    const db = readDb();
+    const newUser = { ...req.body, id: Date.now() };
+    db.users.push(newUser);
+    writeDb(db);
+    const { password, ...safeUser } = newUser;
+    res.json(safeUser);
+  });
+
+  app.put('/api/users/:id', (req, res) => {
+    const db = readDb();
+    const id = parseInt(req.params.id);
+    const index = db.users.findIndex((u: any) => u.id === id);
+    if (index !== -1) {
+      db.users[index] = { ...db.users[index], ...req.body };
+      writeDb(db);
+      const { password, ...safeUser } = db.users[index];
+      res.json(safeUser);
+    } else {
+      res.status(404).json({ error: 'User not found' });
+    }
+  });
+
+  app.delete('/api/users/:id', (req, res) => {
+    const db = readDb();
+    const id = parseInt(req.params.id);
+    db.users = db.users.filter((u: any) => u.id !== id);
+    writeDb(db);
+    res.json({ success: true });
   });
 
   app.post('/api/products', (req, res) => {
@@ -117,6 +210,11 @@ async function startServer() {
     db.sales.push(newSale);
     writeDb(db);
     res.json(newSale);
+  });
+
+  // Root route for API verification
+  app.get('/api', (req, res) => {
+    res.json({ message: 'POS API is running' });
   });
 
   // Vite middleware for development

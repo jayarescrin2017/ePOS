@@ -46,12 +46,15 @@ export default function Sales() {
 
   const exportLedger = () => {
     const csvContent = [
-      ["ID", "Timestamp", "Total", "Payment Method", "Items"],
+      ["ID", "Timestamp", "Total", "Profit", "Payment Method", "Operator", "Role", "Items"],
       ...sales.map(s => [
         `L_${s.id?.toString().padStart(4, '0')}`,
         s.timestamp,
         s.totalAmount,
+        s.totalProfit || 0,
         s.paymentMethod,
+        s.operatorName || 'unknown',
+        s.operatorRole || 'cashier',
         `"${s.items.map(i => `${i.quantity}x ${i.name}`).join(' | ')}"`
       ].join(','))
     ].join('\n');
@@ -130,6 +133,12 @@ export default function Sales() {
                       <Calendar size={12} />
                       {new Date(sale.timestamp).toLocaleString()}
                     </div>
+                    {sale.operatorName && (
+                      <div className="text-[10px] text-gray-400 font-bold font-mono uppercase mt-1 flex items-center gap-1.5 border-t border-gray-50 pt-1">
+                        <span className="bg-gray-100 px-1 rounded">OP: {sale.operatorName}</span>
+                        <span className="text-[8px] bg-orange-50 text-orange-600 px-1 rounded italic">{sale.operatorRole}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 

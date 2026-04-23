@@ -17,6 +17,7 @@ import {
 import React, { useState, useEffect, useMemo } from 'react';
 import { api, Sale, Product } from '../lib/api';
 import { formatCurrency, cn } from '../lib/utils';
+import { motion } from 'motion/react';
 
 export default function Dashboard() {
   const [sales, setSales] = useState<Sale[]>([]);
@@ -66,6 +67,8 @@ export default function Dashboard() {
     { name: 'SUN', sales: 3490 },
   ];
 
+  const operatorRole = localStorage.getItem('operator_role');
+
   return (
     <div className="p-4 max-w-7xl mx-auto space-y-4 pointer-events-auto">
       <div className="flex items-center justify-between">
@@ -81,6 +84,40 @@ export default function Dashboard() {
           No Network Connection Required
         </div>
       </div>
+
+      {operatorRole === 'admin' && products.length === 0 && (
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-orange-50 border-2 border-orange-200 p-4 rounded flex flex-col md:flex-row items-center justify-between gap-4"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-orange-600 rounded-full flex items-center justify-center text-white shrink-0">
+              <ClipboardList size={20} />
+            </div>
+            <div>
+              <h4 className="text-xs font-black uppercase tracking-widest text-orange-900">System Setup Required</h4>
+              <p className="text-[10px] font-bold text-orange-700 uppercase tracking-tighter">Your inventory is empty. Launch the setup guide to configure your store.</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <a 
+              href="/USER_GUIDE.md" 
+              target="_blank"
+              rel="noreferrer"
+              className="px-4 py-2 bg-orange-600 text-white rounded text-[10px] font-black uppercase tracking-widest hover:bg-orange-700 transition-all shadow-sm"
+            >
+              Read Setup Guide
+            </a>
+            <button 
+              onClick={() => window.location.href = '/inventory'}
+              className="px-4 py-2 bg-white border border-orange-200 text-orange-600 rounded text-[10px] font-black uppercase tracking-widest hover:bg-orange-50 transition-all shadow-sm"
+            >
+              Start Inventory
+            </button>
+          </div>
+        </motion.div>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

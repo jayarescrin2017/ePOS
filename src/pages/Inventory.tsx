@@ -62,6 +62,7 @@ export default function Inventory() {
     category: '',
     price: '',
     stockQuantity: '',
+    minStockLevel: '5', // Default alert level
     unit: 'pcs',
     supplier: '',
     wholesalePrice: '',
@@ -86,6 +87,7 @@ export default function Inventory() {
         category: product.category,
         price: product.price.toString(),
         stockQuantity: product.stockQuantity.toString(),
+        minStockLevel: (product.minStockLevel || 5).toString(),
         unit: product.unit,
         supplier: product.supplier || '',
         wholesalePrice: product.wholesalePrice?.toString() || '',
@@ -100,6 +102,7 @@ export default function Inventory() {
         category: '',
         price: '',
         stockQuantity: '',
+        minStockLevel: '5',
         unit: 'pcs',
         supplier: '',
         wholesalePrice: '',
@@ -128,6 +131,7 @@ export default function Inventory() {
       category: formData.category,
       price: parseFloat(formData.price),
       stockQuantity: parseInt(formData.stockQuantity),
+      minStockLevel: parseInt(formData.minStockLevel) || 5,
       unit: formData.unit as any,
       supplier: formData.supplier || undefined,
       wholesalePrice: formData.wholesalePrice ? parseFloat(formData.wholesalePrice) : undefined,
@@ -184,7 +188,8 @@ export default function Inventory() {
                 <th className="px-4 py-2 border-r border-gray-700">Category</th>
                 <th className="px-4 py-2 border-r border-gray-700 text-center">Cost (Wholesale)</th>
                 <th className="px-4 py-2 border-r border-gray-700 text-center">Retail Margin</th>
-                <th className="px-4 py-2 border-r border-gray-700 text-center">Stock</th>
+                <th className="px-4 py-2 border-r border-gray-700 text-center">Min Stock</th>
+                <th className="px-4 py-2 border-r border-gray-700 text-center">Current Stock</th>
                 <th className="px-4 py-2 text-right">Actions</th>
               </tr>
             </thead>
@@ -195,9 +200,13 @@ export default function Inventory() {
                   const retail = product.price;
                   const profit = retail - cost;
                   const markupPct = cost > 0 ? Math.round((profit / cost) * 100) : 0;
+                  const isLowStock = product.stockQuantity <= (product.minStockLevel || 5);
                   
                   return (
-                  <tr key={product.id} className="hover:bg-orange-50 transition-colors group">
+                  <tr key={product.id} className={cn(
+                    "hover:bg-orange-50 transition-colors group",
+                    isLowStock && "bg-red-50"
+                  )}>
                     <td className="px-4 py-2 font-bold text-gray-500 border-r border-gray-100">{product.sku}</td>
                     <td className="px-4 py-2 border-r border-gray-100 uppercase truncate max-w-[200px]">
                       <div className="font-black text-gray-900">{product.name}</div>
@@ -224,16 +233,22 @@ export default function Inventory() {
                         )}
                       </div>
                     </td>
+                    <td className="px-4 py-2 text-center border-r border-gray-100 font-black text-gray-400">
+                      {product.minStockLevel || 5}
+                    </td>
                     <td className="px-4 py-2 border-r border-gray-100 text-center">
                       <div className="flex items-center justify-center gap-1">
                         <span className={cn(
                           "font-black",
-                          product.stockQuantity <= 5 ? "text-red-600" : "text-gray-900"
+                          isLowStock ? "text-red-600" : "text-gray-900"
                         )}>
                           {product.stockQuantity}
                         </span>
                         <span className="text-[9px] text-gray-400 font-bold uppercase">{product.unit}</span>
                       </div>
+                      {isLowStock && (
+                        <div className="text-[7px] font-black text-red-500 uppercase tracking-tighter mt-0.5">RESTOCK REQ.</div>
+                      )}
                     </td>
                     <td className="px-4 py-2 text-right">
                       <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -280,9 +295,9 @@ export default function Inventory() {
               initial={{ scale: 0.98, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.98, opacity: 0 }}
-              className="relative bg-white rounded shadow-2xl w-full max-w-sm overflow-hidden border border-gray-300"
+              className="relative bg-white rounded shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden border border-gray-300"
             >
-              <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+              <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between shrink-0">
                 <h2 className="text-xs font-black text-gray-800 uppercase tracking-widest">
                   {editingProduct ? 'Update Local SKU' : 'New Local SKU'}
                 </h2>
@@ -291,7 +306,7 @@ export default function Inventory() {
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="p-4 space-y-4">
+              <form onSubmit={handleSubmit} className="p-4 space-y-4 overflow-y-auto custom-scrollbar">
                 {/* Section 1: Basic Information */}
                 <div>
                   <h3 className="text-[10px] font-black text-gray-900 uppercase tracking-widest border-b border-gray-200 pb-1 mb-3">Item Identity</h3>
@@ -324,6 +339,18 @@ export default function Inventory() {
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Min Stock Level</label>
+                      <input 
+                        required type="number"
+                        placeholder="Alert Level"
+                        className="w-full px-2 py-1.5 bg-gray-50 border border-gray-200 rounded font-mono text-xs font-bold focus:border-orange-500 outline-none"
+                        value={formData.minStockLevel}
+                        onChange={(e) => setFormData({...formData, minStockLevel: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 mt-3">
                     <div className="space-y-1">
                       <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Current Stock</label>
                       <input 

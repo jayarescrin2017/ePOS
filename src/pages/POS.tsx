@@ -67,9 +67,17 @@ export default function POS() {
   }, [products, search]);
 
   const addToCart = (product: DbProduct) => {
+    if (product.stockQuantity <= 0) {
+      alert("This product is out of stock.");
+      return;
+    }
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
       if (existing) {
+        if (existing.quantity >= product.stockQuantity) {
+          alert(`Insufficient stock. Only ${product.stockQuantity} available.`);
+          return prev;
+        }
         return prev.map(item => 
           item.id === product.id 
             ? { ...item, quantity: item.quantity + 1 }
@@ -84,6 +92,10 @@ export default function POS() {
     setCart(prev => prev.map(item => {
       if (item.id === id) {
         const newQty = Math.max(1, item.quantity + delta);
+        if (newQty > item.stockQuantity) {
+          alert(`Insufficient stock. Only ${item.stockQuantity} available.`);
+          return item;
+        }
         return { ...item, quantity: newQty };
       }
       return item;
@@ -165,6 +177,8 @@ export default function POS() {
         transactionReference: paymentMethod === 'card' ? transactionReference : undefined,
         cashReceived: paymentMethod === 'cash' ? parseFloat(cashReceived) : undefined,
         change: paymentMethod === 'cash' ? changeAmount : undefined,
+        operatorName: localStorage.getItem('operator_name') || 'unknown',
+        operatorRole: localStorage.getItem('operator_role') || 'cashier',
         items: cart.map(item => ({
           id: item.id!.toString(),
           name: item.name,
@@ -314,9 +328,14 @@ export default function POS() {
                    <div className="absolute top-1 right-1 px-1.5 py-0.5 bg-gray-100 text-[8px] font-black uppercase text-gray-500 rounded border border-gray-200">
                      {product.category || 'GEN'}
                    </div>
-                   {product.stockQuantity <= 5 && product.stockQuantity > 0 && (
+                   {product.stockQuantity <= (product.minStockLevel || 5) && product.stockQuantity > 0 && (
                      <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-red-100 text-[8px] font-black uppercase text-red-600 rounded border border-red-200 animate-pulse">
                        Low Stock
+                     </div>
+                   )}
+                   {product.stockQuantity <= 0 && (
+                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                        <span className="bg-red-600 text-white text-[10px] font-black px-2 py-1 rounded uppercase tracking-widest">Out of Stock</span>
                      </div>
                    )}
                 </div>

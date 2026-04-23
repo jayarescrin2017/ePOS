@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Search, 
   Plus, 
@@ -6,6 +6,7 @@ import {
   Trash2, 
   X, 
   Package,
+  Keyboard
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api, Product } from '../lib/api';
@@ -18,13 +19,37 @@ export default function Inventory() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
   // Confirmation Modal states
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [pendingSubmit, setPendingSubmit] = useState<boolean>(false);
 
   useEffect(() => {
     loadProducts();
-  }, []);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // F9: Open New Product Modal
+      if (e.key === 'F9' || (e.altKey && e.key === 'n')) {
+        e.preventDefault();
+        if (!isModalOpen) openModal();
+      }
+
+      // Alt + S: Focus Search
+      if (e.altKey && e.key === 's') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+
+      // Esc: Close Modal
+      if (e.key === 'Escape' && isModalOpen) {
+        setIsModalOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isModalOpen]);
 
   const loadProducts = async () => {
     const data = await api.getProducts();
@@ -37,7 +62,11 @@ export default function Inventory() {
     category: '',
     price: '',
     stockQuantity: '',
-    unit: 'pcs'
+    unit: 'pcs',
+    supplier: '',
+    wholesalePrice: '',
+    purchaseDate: '',
+    purchaseQuantity: ''
   });
 
   const filteredProducts = useMemo(() => {
@@ -57,7 +86,11 @@ export default function Inventory() {
         category: product.category,
         price: product.price.toString(),
         stockQuantity: product.stockQuantity.toString(),
-        unit: product.unit
+        unit: product.unit,
+        supplier: product.supplier || '',
+        wholesalePrice: product.wholesalePrice?.toString() || '',
+        purchaseDate: product.purchaseDate || '',
+        purchaseQuantity: product.purchaseQuantity?.toString() || ''
       });
     } else {
       setEditingProduct(null);
@@ -67,7 +100,11 @@ export default function Inventory() {
         category: '',
         price: '',
         stockQuantity: '',
-        unit: 'pcs'
+        unit: 'pcs',
+        supplier: '',
+        wholesalePrice: '',
+        purchaseDate: '',
+        purchaseQuantity: ''
       });
     }
     setIsModalOpen(true);
@@ -91,7 +128,11 @@ export default function Inventory() {
       category: formData.category,
       price: parseFloat(formData.price),
       stockQuantity: parseInt(formData.stockQuantity),
-      unit: formData.unit as any
+      unit: formData.unit as any,
+      supplier: formData.supplier || undefined,
+      wholesalePrice: formData.wholesalePrice ? parseFloat(formData.wholesalePrice) : undefined,
+      purchaseDate: formData.purchaseDate || undefined,
+      purchaseQuantity: formData.purchaseQuantity ? parseInt(formData.purchaseQuantity) : undefined,
     };
 
     if (editingProduct) {
@@ -124,8 +165,9 @@ export default function Inventory() {
         <div className="p-3 border-b border-gray-200 bg-gray-50 flex items-center gap-3">
           <Search size={16} className="text-gray-400" />
           <input 
+            ref={searchInputRef}
             type="text" 
-            placeholder="Search catalog by SKU, name, or category..."
+            placeholder="Search catalog by SKU, name, or category... (ALT+S)"
             className="flex-1 bg-transparent border-none focus:ring-0 text-xs font-bold uppercase outline-none placeholder-gray-400"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -138,23 +180,49 @@ export default function Inventory() {
             <thead className="sticky top-0 z-10">
               <tr className="bg-gray-800 text-gray-400 uppercase text-[9px] font-black tracking-[0.2em]">
                 <th className="px-4 py-2 border-r border-gray-700">SKU/Barcode</th>
-                <th className="px-4 py-2 border-r border-gray-700">Product Description</th>
-                <th className="px-4 py-2 border-r border-gray-700">Cat</th>
+                <th className="px-4 py-2 border-r border-gray-700">Description</th>
+                <th className="px-4 py-2 border-r border-gray-700">Category</th>
+                <th className="px-4 py-2 border-r border-gray-700 text-center">Cost (Wholesale)</th>
+                <th className="px-4 py-2 border-r border-gray-700 text-center">Retail Margin</th>
                 <th className="px-4 py-2 border-r border-gray-700 text-center">Stock</th>
-                <th className="px-4 py-2 border-r border-gray-700 text-right">Unit Price</th>
                 <th className="px-4 py-2 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 font-mono text-[11px]">
               {filteredProducts.length > 0 ? (
-                filteredProducts.map((product) => (
+                filteredProducts.map((product) => {
+                  const cost = product.wholesalePrice || 0;
+                  const retail = product.price;
+                  const profit = retail - cost;
+                  const markupPct = cost > 0 ? Math.round((profit / cost) * 100) : 0;
+                  
+                  return (
                   <tr key={product.id} className="hover:bg-orange-50 transition-colors group">
                     <td className="px-4 py-2 font-bold text-gray-500 border-r border-gray-100">{product.sku}</td>
-                    <td className="px-4 py-2 font-black text-gray-900 border-r border-gray-100 uppercase truncate max-w-[200px]">{product.name}</td>
+                    <td className="px-4 py-2 border-r border-gray-100 uppercase truncate max-w-[200px]">
+                      <div className="font-black text-gray-900">{product.name}</div>
+                      {product.supplier && <div className="text-[9px] text-gray-400 mt-0.5">SUPPLIER: {product.supplier}</div>}
+                    </td>
                     <td className="px-4 py-2 border-r border-gray-100">
                       <span className="text-[9px] font-black bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded uppercase">
                         {product.category || 'DEF'}
                       </span>
+                    </td>
+                    <td className="px-4 py-2 text-center border-r border-gray-100 font-black text-gray-600">
+                      {product.wholesalePrice ? formatCurrency(product.wholesalePrice) : '-'}
+                      {product.purchaseQuantity ? <div className="text-[8px] text-gray-400 mt-1">LAST QTY: {product.purchaseQuantity}</div> : null}
+                    </td>
+                    <td className="px-4 py-2 text-right border-r border-gray-100 min-w-[120px]">
+                      <div className="flex flex-col items-end">
+                        <span className="font-black text-orange-600">RETAIL: {formatCurrency(retail)}</span>
+                        {cost > 0 && (
+                          <span className={cn("text-[9px] font-black uppercase tracking-widest mt-0.5", 
+                            profit > 0 ? "text-green-600" : "text-red-500"
+                          )}>
+                            {profit > 0 ? '+' : ''}{formatCurrency(profit)} ({markupPct}%)
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-2 border-r border-gray-100 text-center">
                       <div className="flex items-center justify-center gap-1">
@@ -167,7 +235,6 @@ export default function Inventory() {
                         <span className="text-[9px] text-gray-400 font-bold uppercase">{product.unit}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-2 font-black text-orange-600 text-right border-r border-gray-100">{formatCurrency(product.price)}</td>
                     <td className="px-4 py-2 text-right">
                       <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button 
@@ -185,7 +252,7 @@ export default function Inventory() {
                       </div>
                     </td>
                   </tr>
-                ))
+                )})
               ) : (
                 <tr>
                   <td colSpan={6} className="px-6 py-12 text-center text-gray-400 text-[10px] font-bold uppercase tracking-widest italic">
@@ -224,73 +291,137 @@ export default function Inventory() {
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="p-4 space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">SKU / Barcode</label>
+              <form onSubmit={handleSubmit} className="p-4 space-y-4">
+                {/* Section 1: Basic Information */}
+                <div>
+                  <h3 className="text-[10px] font-black text-gray-900 uppercase tracking-widest border-b border-gray-200 pb-1 mb-3">Item Identity</h3>
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest whitespace-nowrap">SKU / Barcode</label>
+                      <input 
+                        required
+                        className="w-full px-2 py-1.5 bg-gray-50 border border-gray-200 rounded font-mono text-[11px] focus:border-orange-500 outline-none"
+                        value={formData.sku}
+                        onChange={(e) => setFormData({...formData, sku: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Category</label>
+                      <input 
+                        className="w-full px-2 py-1.5 bg-gray-50 border border-gray-200 rounded font-bold text-[11px] uppercase focus:border-orange-500 outline-none"
+                        value={formData.category}
+                        onChange={(e) => setFormData({...formData, category: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1 mb-3">
+                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Description</label>
                     <input 
                       required
-                      className="w-full px-2 py-1.5 bg-gray-50 border border-gray-200 rounded font-mono text-[11px] focus:border-orange-500 outline-none"
-                      value={formData.sku}
-                      onChange={(e) => setFormData({...formData, sku: e.target.value})}
+                      className="w-full px-2 py-1.5 bg-gray-50 border border-gray-200 rounded font-black text-[11px] uppercase focus:border-orange-500 outline-none"
+                      value={formData.name}
+                      onChange={(e) => setFormData({...formData, name: e.target.value})}
                     />
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Category</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Current Stock</label>
+                      <input 
+                        required type="number"
+                        className="w-full px-2 py-1.5 bg-gray-50 border border-gray-200 rounded font-mono text-xs font-bold focus:border-orange-500 outline-none"
+                        value={formData.stockQuantity}
+                        onChange={(e) => setFormData({...formData, stockQuantity: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">UOM</label>
+                      <select 
+                        className="w-full px-2 py-1.5 bg-gray-50 border border-gray-200 rounded font-bold text-[11px] uppercase focus:border-orange-500 outline-none appearance-none"
+                        value={formData.unit}
+                        onChange={(e) => setFormData({...formData, unit: e.target.value as any})}
+                      >
+                        <option value="pcs">EACH (PCS)</option>
+                        <option value="kg">KILO (KG)</option>
+                        <option value="m">METER (M)</option>
+                        <option value="set">SET</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: Financials & Wholesale */}
+                <div>
+                  <h3 className="text-[10px] font-black text-gray-900 uppercase tracking-widest border-b border-gray-200 pb-1 mb-3">Pricing & Margins</h3>
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Wholesale / Cost</label>
+                      <input 
+                        type="number" step="0.01"
+                        placeholder="0.00"
+                        className="w-full px-2 py-1.5 bg-gray-50 border border-gray-200 rounded font-mono text-xs font-bold focus:border-orange-500 outline-none text-gray-600"
+                        value={formData.wholesalePrice}
+                        onChange={(e) => setFormData({...formData, wholesalePrice: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Retail Price</label>
+                      <input 
+                        required type="number" step="0.01"
+                        placeholder="0.00"
+                        className="w-full px-2 py-1.5 bg-gray-50 border border-gray-200 rounded font-mono text-xs font-black focus:border-orange-500 outline-none text-orange-600"
+                        value={formData.price}
+                        onChange={(e) => setFormData({...formData, price: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                  
+                  {formData.price && formData.wholesalePrice && (
+                    <div className="bg-gray-100 p-2 rounded text-[10px] font-mono text-gray-600 uppercase tracking-widest flex justify-between">
+                      <span>Expected Profit:</span>
+                      <span className="font-black text-green-600">
+                        {formatCurrency(parseFloat(formData.price) - parseFloat(formData.wholesalePrice))}
+                        {' '}({Math.round(((parseFloat(formData.price) - parseFloat(formData.wholesalePrice)) / parseFloat(formData.wholesalePrice)) * 100)}%)
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Section 3: Vendor & Restock */}
+                <div>
+                  <h3 className="text-[10px] font-black text-gray-900 uppercase tracking-widest border-b border-gray-200 pb-1 mb-3">Supplier Info</h3>
+                  <div className="space-y-1 mb-3">
+                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Supplier Name</label>
                     <input 
+                      placeholder="Optional"
                       className="w-full px-2 py-1.5 bg-gray-50 border border-gray-200 rounded font-bold text-[11px] uppercase focus:border-orange-500 outline-none"
-                      value={formData.category}
-                      onChange={(e) => setFormData({...formData, category: e.target.value})}
+                      value={formData.supplier}
+                      onChange={(e) => setFormData({...formData, supplier: e.target.value})}
                     />
                   </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Description</label>
-                  <input 
-                    required
-                    className="w-full px-2 py-1.5 bg-gray-50 border border-gray-200 rounded font-black text-[11px] uppercase focus:border-orange-500 outline-none"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Unit Price ($)</label>
-                    <input 
-                      required type="number" step="0.01"
-                      className="w-full px-2 py-1.5 bg-gray-50 border border-gray-200 rounded font-mono text-xs font-bold focus:border-orange-500 outline-none"
-                      value={formData.price}
-                      onChange={(e) => setFormData({...formData, price: e.target.value})}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">UOM</label>
-                    <select 
-                      className="w-full px-2 py-1.5 bg-gray-50 border border-gray-200 rounded font-bold text-[11px] uppercase focus:border-orange-500 outline-none appearance-none"
-                      value={formData.unit}
-                      onChange={(e) => setFormData({...formData, unit: e.target.value as any})}
-                    >
-                      <option value="pcs">EACH (PCS)</option>
-                      <option value="kg">KILO (KG)</option>
-                      <option value="m">METER (M)</option>
-                      <option value="set">SET</option>
-                    </select>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Last Purchase Date</label>
+                      <input 
+                        type="date"
+                        className="w-full px-2 py-1.5 bg-gray-50 border border-gray-200 rounded font-mono text-xs focus:border-orange-500 outline-none"
+                        value={formData.purchaseDate}
+                        onChange={(e) => setFormData({...formData, purchaseDate: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Last Purchase QTY</label>
+                      <input 
+                        type="number"
+                        placeholder="Volume"
+                        className="w-full px-2 py-1.5 bg-gray-50 border border-gray-200 rounded font-mono text-xs focus:border-orange-500 outline-none"
+                        value={formData.purchaseQuantity}
+                        onChange={(e) => setFormData({...formData, purchaseQuantity: e.target.value})}
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Stock On Hand</label>
-                  <input 
-                    required type="number"
-                    className="w-full px-2 py-1.5 bg-gray-50 border border-gray-200 rounded font-mono text-xs font-bold focus:border-orange-500 outline-none"
-                    value={formData.stockQuantity}
-                    onChange={(e) => setFormData({...formData, stockQuantity: e.target.value})}
-                  />
-                </div>
-
-                <div className="pt-2 flex gap-2">
+                <div className="pt-4 flex gap-2">
                   <button 
                     type="button" 
                     onClick={() => setIsModalOpen(false)}

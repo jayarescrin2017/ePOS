@@ -26,6 +26,7 @@ export default function StoreSettingsPage() {
     });
     setSaving(false);
     alert('Store settings saved successfully!');
+    window.location.reload();
   };
 
   if (loading) {

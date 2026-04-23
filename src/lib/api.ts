@@ -8,6 +8,10 @@ export interface Product {
   price: number;
   stockQuantity: number;
   unit: 'pcs' | 'kg' | 'm' | 'set';
+  supplier?: string;
+  wholesalePrice?: number;
+  purchaseDate?: string;
+  purchaseQuantity?: number;
 }
 
 export interface SaleItem {
@@ -16,15 +20,22 @@ export interface SaleItem {
   quantity: number;
   price: number;
   subtotal: number;
+  cost?: number;
+  profit?: number;
 }
 
 export interface Sale {
   id?: number;
   timestamp: string;
+  subtotalAmount: number;
+  taxAmount: number;
+  discountAmount?: number;
   totalAmount: number;
+  totalProfit?: number;
   paymentMethod: 'cash' | 'card';
   cashReceived?: number;
   change?: number;
+  transactionReference?: string;
   items: SaleItem[];
 }
 

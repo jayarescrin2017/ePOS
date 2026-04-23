@@ -72,14 +72,20 @@ export async function printReceipt(sale: Sale) {
           ${itemsHtml}
         </div>
 
-        <div class="border-b pb-4 mb-4 space-y-1">
+        <div class="border-b pb-4 mb-4 space-y-1 text-xs">
           <div class="flex justify-between">
             <span class="font-bold">SUBTOTAL:</span>
-            <span>${formatCurrency(sale.totalAmount / 1.12)}</span>
+            <span>${formatCurrency(sale.subtotalAmount)}</span>
           </div>
+          ${sale.discountAmount ? `
+          <div class="flex justify-between">
+            <span class="font-bold">DISCOUNT:</span>
+            <span>-${formatCurrency(sale.discountAmount)}</span>
+          </div>
+          ` : ''}
           <div class="flex justify-between">
             <span class="font-bold">VAT (12%):</span>
-            <span>${formatCurrency(sale.totalAmount - (sale.totalAmount / 1.12))}</span>
+            <span>${formatCurrency(sale.taxAmount)}</span>
           </div>
           <div class="flex justify-between text-sm font-black border-t-solid mt-2 pt-4">
             <span>TOTAL:</span>
@@ -92,6 +98,12 @@ export async function printReceipt(sale: Sale) {
             <span>Payment Type:</span>
             <span>${sale.paymentMethod}</span>
           </div>
+          ${sale.paymentMethod === 'card' && sale.transactionReference ? `
+            <div class="flex justify-between uppercase">
+              <span>Ref No:</span>
+              <span>${sale.transactionReference}</span>
+            </div>
+          ` : ''}
           ${sale.paymentMethod === 'cash' ? `
             <div class="flex justify-between uppercase">
               <span>Cash Tendered:</span>

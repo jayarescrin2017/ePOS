@@ -9,7 +9,8 @@ import {
   Routes, 
   Route, 
   Link, 
-  useLocation 
+  useLocation,
+  useNavigate
 } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -28,7 +29,8 @@ import {
   DollarSign,
   WifiOff,
   Building,
-  BarChart3
+  BarChart3,
+  Keyboard
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { api } from './lib/api';
@@ -51,14 +53,18 @@ const NAV_ITEMS = [
   { icon: Building, label: 'Store', path: '/store' },
 ];
 
-function Sidebar() {
+function Sidebar({ logoUrl }: { logoUrl: string | null }) {
   const location = useLocation();
 
   return (
     <aside className="w-20 bg-gray-100 border-r border-gray-300 flex flex-col gap-1 p-1 h-screen sticky top-0">
       <div className="mb-2 p-2">
-        <Link to="/" className="w-12 h-12 bg-orange-500 rounded flex items-center justify-center text-white mx-auto shadow-sm">
-          <Store size={22} />
+        <Link to="/" className="w-12 h-12 bg-orange-500 rounded flex items-center justify-center text-white mx-auto shadow-sm overflow-hidden">
+          {logoUrl ? (
+            <img src={logoUrl} alt="Store" className="w-full h-full object-cover" />
+          ) : (
+            <Store size={22} />
+          )}
         </Link>
       </div>
       
@@ -92,14 +98,40 @@ function Sidebar() {
   );
 }
 
+function KeyboardShortcuts() {
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.altKey) {
+        switch (e.key) {
+          case '1': navigate('/'); break;
+          case '2': navigate('/pos'); break;
+          case '3': navigate('/inventory'); break;
+          case '4': navigate('/sales'); break;
+          case '5': navigate('/reports'); break;
+          case '6': navigate('/store'); break;
+        }
+      }
+    };
+    
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [navigate]);
+
+  return null;
+}
+
 export default function App() {
   const [operator, setOperator] = useState<string | null>(localStorage.getItem('operator_name'));
   const [loading, setLoading] = useState(true);
   const [storeName, setStoreName] = useState('ACE HARDWARE PRO');
+  const [storeLogo, setStoreLogo] = useState<string | null>(null);
 
   useEffect(() => {
     api.getSettings().then(settings => {
       setStoreName(settings.name);
+      setStoreLogo(settings.logoUrl || null);
       setLoading(false);
     });
   }, []);
@@ -144,14 +176,18 @@ export default function App() {
         <div className="w-full max-w-sm bg-white border border-gray-300 rounded shadow-2xl overflow-hidden">
           <div className="bg-[#111827] p-8 text-center border-b border-gray-800">
             <div className="relative inline-block">
-              <div className="w-16 h-16 bg-orange-600 rounded-xl flex items-center justify-center text-white mb-4 shadow-lg">
-                <Store size={32} />
+              <div className="w-16 h-16 bg-orange-600 rounded-xl flex items-center justify-center text-white mb-4 shadow-lg overflow-hidden">
+                {storeLogo ? (
+                  <img src={storeLogo} alt="Store" className="w-full h-full object-cover bg-white" />
+                ) : (
+                  <Store size={32} />
+                )}
               </div>
               <div className="absolute -bottom-1 -right-1 bg-white p-1 rounded-full border border-gray-300">
                 <WifiOff size={10} className="text-red-500" />
               </div>
             </div>
-            <h1 className="text-xl font-black text-white uppercase tracking-tighter">Hardware Pro POS</h1>
+            <h1 className="text-xl font-black text-white uppercase tracking-tighter">{storeName}</h1>
             <p className="text-gray-500 text-[10px] font-bold uppercase tracking-[0.2em] mt-1 italic">Standalone Offline Mode</p>
           </div>
           
@@ -188,16 +224,21 @@ export default function App() {
 
   return (
     <Router>
+      <KeyboardShortcuts />
       <div className="flex flex-col h-screen bg-[#E5E7EB] font-sans text-gray-900 overflow-hidden">
         {/* Top Header from Design */}
         <header className="bg-[#111827] text-white px-4 py-2 flex items-center justify-between border-b border-gray-700 shadow-sm z-50">
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
-              <div className="bg-orange-500 p-1.5 rounded">
-                <Store size={18} className="text-white" />
+              <div className="bg-orange-500 rounded overflow-hidden flex items-center justify-center" style={{ width: '30px', height: '30px' }}>
+                {storeLogo ? (
+                  <img src={storeLogo} alt="Store" className="w-full h-full object-cover bg-white" />
+                ) : (
+                  <Store size={18} className="text-white" />
+                )}
               </div>
-              <span className="font-bold tracking-tight text-lg uppercase">{storeName}</span>
-              <div className="flex items-center gap-1.5 px-2 py-0.5 bg-red-900/40 border border-red-500/30 rounded text-[9px] font-black text-red-400 uppercase tracking-widest">
+              <span className="font-bold tracking-tight text-lg uppercase truncate max-w-[200px]">{storeName}</span>
+              <div className="hidden sm:flex items-center gap-1.5 px-2 py-0.5 bg-red-900/40 border border-red-500/30 rounded text-[9px] font-black text-red-400 uppercase tracking-widest ml-1">
                 <WifiOff size={10} />
                 Offline
               </div>
@@ -222,7 +263,7 @@ export default function App() {
         </header>
 
         <div className="flex flex-1 overflow-hidden">
-          <Sidebar />
+          <Sidebar logoUrl={storeLogo} />
           <main className="flex-1 overflow-auto bg-[#E5E7EB]">
             <Routes>
               <Route path="/" element={<Dashboard />} />

@@ -32,7 +32,7 @@ if (!fs.existsSync(DB_FILE)) {
 function readDb() {
   const data = JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
   if (!data.settings) {
-    data.settings = { name: "ACE HARDWARE PRO", address: "123 Industrial Ave, Tech City", contact: "(555) 012-3456" };
+    data.settings = { name: "ESCRIN HOLLOWBLOCKS TRADINGS", address: "P5 ZILLOVIA, TALACOGON, AGUSAN DEL SUR", contact: "09510417587" };
     writeDb(data);
   }
   return data;
@@ -44,9 +44,11 @@ function writeDb(data: any) {
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  // AI Studio requires port 3000, but we can override it via LOCAL_PORT for local setups
+  const PORT = Number(process.env.LOCAL_PORT) || 3000;
 
-  app.use(express.json());
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
   // API Routes
   app.get('/api/settings', (req, res) => {

@@ -1,0 +1,6 @@
+{
+  "name": "Hardware Pro POS",
+  "description": "A high-performance Point of Sale system for hardware stores, featuring inventory management, real-time sales tracking, and PWA capabilities.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

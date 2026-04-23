@@ -1,0 +1,67 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // 1. Products Collection
+    match /products/{productId} {
+      allow read: if isSignedIn();
+      
+      allow create: if isSignedIn() 
+        && isValidProduct(incoming())
+        && isValidId(productId);
+        
+      allow update: if isSignedIn()
+        && isValidProduct(incoming())
+        && (
+          // Admin override or standard inventory update logic
+          true // For now restricting by auth is basic level
+        );
+        
+      allow delete: if isSignedIn();
+
+      function isValidProduct(data) {
+        return data.sku is string && data.sku.size() > 0 && data.sku.size() < 100
+          && data.name is string && data.name.size() > 0
+          && data.price is number && data.price >= 0
+          && data.stockQuantity is number;
+      }
+    }
+
+    // 2. Sales Collection
+    match /sales/{saleId} {
+      allow read: if isSignedIn();
+      
+      // Transactions are immutable (no updates or deletes allowed for sales history)
+      allow create: if isSignedIn() 
+        && isValidSale(incoming())
+        && isValidId(saleId);
+        
+      function isValidSale(data) {
+        return data.timestamp is timestamp
+          && data.totalAmount is number && data.totalAmount >= 0
+          && data.items is list && data.items.size() > 0;
+      }
+    }
+  }
+}

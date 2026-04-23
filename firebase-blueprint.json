@@ -1,0 +1,55 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "Hardware store product item",
+      "type": "object",
+      "properties": {
+        "sku": { "type": "string", "description": "Stock Keeping Unit / Barcode" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "price": { "type": "number" },
+        "stockQuantity": { "type": "number" },
+        "unit": { "type": "string", "enum": ["pcs", "kg", "m", "set"] },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["sku", "name", "price", "stockQuantity"]
+    },
+    "Sale": {
+      "title": "Sale",
+      "description": "A completed POS transaction",
+      "type": "object",
+      "properties": {
+        "timestamp": { "type": "string", "format": "date-time" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "productId": { "type": "string" },
+              "name": { "type": "string" },
+              "quantity": { "type": "number" },
+              "price": { "type": "number" },
+              "subtotal": { "type": "number" }
+            }
+          }
+        },
+        "totalAmount": { "type": "number" },
+        "paymentMethod": { "type": "string", "enum": ["cash", "card", "vouchers"] },
+        "cashierId": { "type": "string" }
+      },
+      "required": ["timestamp", "items", "totalAmount"]
+    }
+  },
+  "firestore": {
+    "products": {
+      "schema": "Product",
+      "description": "Catalog of hardware items"
+    },
+    "sales": {
+      "schema": "Sale",
+      "description": "History of all transactions"
+    }
+  }
+}

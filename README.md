@@ -1,20 +1,26 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Professional POS PWA (Offline-First)
 
-# Run and deploy your AI Studio app
+A high-performance Point of Sale (POS) system built with React, TypeScript, and Express. Optimized for standalone usage with local database persistence and PWA capabilities.
 
-This contains everything you need to run your app locally.
+## 📂 Documentation
 
-View your app in AI Studio: https://ai.studio/apps/0e7bb166-2ea3-487d-aceb-3fe66fe1e586
+Detailed guides are available in the `docs/` folder:
 
-## Run Locally
+*   [**User & Setup Guide**](./docs/USER_GUIDE.md): Instruction for store owners, staff management, and POS operations.
+*   [**Local Installation Guide**](./docs/LOCAL_SETUP.md): Instructions for running the app on your local machine (Windows/Mac/Linux).
 
-**Prerequisites:**  Node.js
+## 🚀 Key Features
 
+*   **Offline-First**: Works without an internet connection using local IndexedDB.
+*   **PWA**: Installable on Desktop, Android, and iOS.
+*   **Inventory Level Tracking**: Automatic stock deduction and low-stock alerts.
+*   **Role-Based Access**: Secure login for Admins and Cashiers.
+*   **Sales Insights**: Real-time dashboard with profit tracking and sales history.
+*   **Receipt Printing**: Professional thermal-style receipt generation.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## 🛠️ Built With
+
+*   **Frontend**: React, Tailwind CSS, Lucide Icons, Framer Motion.
+*   **State & DB**: Dexie.js (IndexedDB).
+*   **Backend**: Node.js, Express, LowDB.
+*   **Build Tool**: Vite.

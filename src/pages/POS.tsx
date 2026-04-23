@@ -28,6 +28,249 @@ interface CartItem extends DbProduct {
 
 import { printReceipt } from '../lib/printReceipt';
 
+function CartContent({ 
+  cart, 
+  totals, 
+  updateQuantity, 
+  removeFromCart, 
+  clearCart, 
+  suspendCart, 
+  paymentMethod, 
+  setPaymentMethod,
+  cashReceived,
+  setCashReceived,
+  transactionReference,
+  setTransactionReference,
+  changeAmount,
+  handleCheckout,
+  processing,
+  cashInputRef,
+  cardInputRef,
+  isMobile,
+  onClose,
+  discountAmount,
+  setDiscountAmount
+}: any) {
+  return (
+    <div className="flex flex-col h-full">
+      {!isMobile && (
+        <div className="p-4 border-b border-gray-300 bg-gray-50 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-gray-800">
+              <div className="w-8 h-8 bg-gray-800 rounded flex items-center justify-center text-orange-500">
+                <ShoppingCart size={16} />
+              </div>
+              <h2 className="font-black text-xs uppercase tracking-widest leading-none">Transaction Cart</h2>
+            </div>
+            <span className="text-[10px] font-mono font-black bg-gray-200 px-2 py-1 rounded text-gray-600 uppercase">
+              Items: {cart.reduce((s: any, i: any) => s + i.quantity, 0)}
+            </span>
+          </div>
+          
+          <div className="flex gap-2">
+            <button 
+              disabled={cart.length === 0}
+              onClick={suspendCart}
+              className="flex-1 px-2 py-1.5 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded text-[9px] font-black uppercase tracking-widest hover:bg-yellow-100 disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+              title="Alt + H"
+            >
+              <Pause size={10} /> Suspend (ALT+H)
+            </button>
+            <button 
+              disabled={cart.length === 0}
+              onClick={clearCart}
+              className="flex-1 px-2 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded text-[9px] font-black uppercase tracking-widest hover:bg-red-100 disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+              title="Alt + V"
+            >
+              <Trash2 size={10} /> Void (ALT+V)
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className={cn("flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar bg-gray-50/50", isMobile && "p-4")}>
+        <AnimatePresence>
+          {cart.map((item: any) => (
+            <motion.div
+              key={item.id}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="bg-white p-2 sm:p-3 border border-gray-200 rounded shadow-sm group hover:border-orange-500 transition-colors"
+            >
+              <div className="flex gap-3">
+                <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center text-gray-400 flex-shrink-0 group-hover:bg-gray-800 group-hover:text-orange-500 transition-colors">
+                  <Package size={18} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[9px] font-mono text-gray-400 uppercase leading-none mb-1">{item.sku}</div>
+                  <div className="font-black text-[10px] sm:text-xs text-gray-900 uppercase leading-tight truncate mb-1">{item.name}</div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1">
+                      <button 
+                        onClick={() => updateQuantity(item.id!, -1)}
+                        className="p-1 sm:p-1.5 hover:bg-gray-100 text-gray-500 rounded border border-gray-100"
+                      >
+                        <Minus size={10} />
+                      </button>
+                      <span className="font-mono text-xs font-black min-w-[24px] text-center">{item.quantity}</span>
+                      <button 
+                        onClick={() => updateQuantity(item.id!, 1)}
+                        className="p-1 sm:p-1.5 hover:bg-gray-100 text-gray-500 rounded border border-gray-100"
+                      >
+                        <Plus size={10} />
+                      </button>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[10px] sm:text-xs font-mono font-black text-orange-600">{formatCurrency(item.price * item.quantity)}</div>
+                      <button 
+                        onClick={() => removeFromCart(item.id!)}
+                        className="text-[8px] font-black text-gray-400 hover:text-red-600 uppercase tracking-widest mt-1"
+                      >
+                        Remove Line
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+        {cart.length === 0 && (
+          <div className="h-full flex flex-col items-center justify-center text-gray-300 opacity-50 py-20 pointer-events-none">
+            <ShoppingCart size={48} strokeWidth={1} className="mb-4" />
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-center w-40">Cart is currently empty. Awaiting SKU entry.</p>
+          </div>
+        )}
+      </div>
+
+      <div className={cn("p-4 bg-gray-800 text-white shadow-2xl space-y-4", isMobile && "pb-8")}>
+        <div className="space-y-1.5 border-b border-gray-700 pb-4">
+          <div className="flex justify-between text-[11px] font-mono text-gray-400">
+            <span className="uppercase font-bold">Subtotal</span>
+            <span>{formatCurrency(totals.rawSubtotal)}</span>
+          </div>
+
+          <div className="flex items-center justify-between text-[11px] font-mono text-orange-400">
+             <span className="uppercase font-black flex items-center gap-1.5"><Tag size={12} /> Discount (-$)</span>
+             <input 
+               type="number"
+               placeholder="0.00"
+               disabled={cart.length === 0}
+               value={discountAmount}
+               onChange={(e) => setDiscountAmount(e.target.value)}
+               className="w-24 bg-gray-900 border border-gray-600 text-white text-right px-2 py-1 rounded outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 disabled:opacity-50"
+             />
+          </div>
+          
+          <div className="flex justify-between text-[11px] font-mono text-gray-400">
+            <span className="uppercase font-bold">Tax (VAT 12%)</span>
+            <span>{formatCurrency(totals.tax)}</span>
+          </div>
+          <div className="flex justify-between items-end pt-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-white">Grand Total</span>
+            <span className="text-2xl sm:text-3xl font-black font-mono leading-none tracking-tighter text-orange-500">
+              {formatCurrency(totals.total)}
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => setPaymentMethod('cash')}
+            className={cn(
+              "flex flex-col items-center justify-center p-2 sm:p-3 rounded border transition-all gap-1",
+              paymentMethod === 'cash' 
+                ? "bg-orange-600 border-orange-400 text-white" 
+                : "bg-gray-700 border-gray-600 text-gray-400 hover:bg-gray-650"
+            )}
+          >
+            <Banknote size={16} />
+            <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest font-mono">Cash</span>
+          </button>
+          <button
+            onClick={() => setPaymentMethod('card')}
+            className={cn(
+              "flex flex-col items-center justify-center p-2 sm:p-3 rounded border transition-all gap-1",
+              paymentMethod === 'card' 
+                ? "bg-orange-600 border-orange-400 text-white" 
+                : "bg-gray-700 border-gray-600 text-gray-400 hover:bg-gray-650"
+            )}
+          >
+            <CreditCard size={16} />
+            <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest font-mono text-center">Card/GCash</span>
+          </button>
+        </div>
+
+        {paymentMethod === 'cash' && (
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-700">
+            <div className="space-y-1">
+              <label className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-gray-400">Received</label>
+              <div className="relative">
+                <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" size={10} />
+                <input 
+                  ref={cashInputRef}
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  className="w-full pl-6 pr-2 py-1.5 sm:py-2 bg-gray-700 border border-gray-600 rounded text-[10px] sm:text-xs font-black font-mono text-white outline-none focus:border-orange-500"
+                  value={cashReceived}
+                  onChange={(e: any) => setCashReceived(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-gray-400">Change</label>
+              <div className="w-full px-2 py-1.5 sm:py-2 bg-gray-900 border border-gray-600 rounded text-[10px] sm:text-xs font-black font-mono text-orange-400 truncate">
+                {formatCurrency(changeAmount)}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {paymentMethod === 'card' && (
+          <div className="pt-2 border-t border-gray-700">
+            <div className="space-y-1">
+              <label className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-gray-400 flex items-center justify-between">
+                <span>Ref / GCash No.</span>
+              </label>
+              <div className="relative">
+                <Hash className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" size={10} />
+                <input 
+                  ref={cardInputRef}
+                  type="text"
+                  placeholder="Enter Reference..."
+                  className="w-full pl-6 pr-2 py-1.5 sm:py-2 bg-gray-700 border border-gray-600 rounded text-[10px] sm:text-xs font-black font-mono text-white outline-none focus:border-orange-500"
+                  value={transactionReference}
+                  onChange={(e: any) => setTransactionReference(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        <button 
+          disabled={cart.length === 0 || processing || (paymentMethod === 'cash' && (parseFloat(cashReceived) || 0) < totals.total) || (paymentMethod === 'card' && !transactionReference.trim())}
+          onClick={() => {
+            handleCheckout();
+            if (onClose) onClose();
+          }}
+          className="w-full py-3 sm:py-4 bg-white text-gray-950 rounded font-black uppercase tracking-[0.2em] text-[10px] sm:text-xs hover:bg-orange-500 hover:text-white transition-all shadow-xl active:translate-y-1 flex items-center justify-center gap-2 disabled:opacity-50 disabled:grayscale disabled:pointer-events-none"
+        >
+          {processing ? (
+            <div className="w-4 h-4 sm:w-5 h-5 border-4 border-gray-800 border-t-orange-500 rounded-full animate-spin" />
+          ) : (
+            <>
+              <DollarSign size={16} />
+              Finalize Order
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function POS() {
   const [products, setProducts] = useState<DbProduct[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -47,6 +290,7 @@ export default function POS() {
   // Advanced POS Features
   const [discountAmount, setDiscountAmount] = useState<string>('');
   const [suspendedCarts, setSuspendedCarts] = useState<{ id: string, cart: CartItem[], timestamp: Date }[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
   const loadProducts = async () => {
     const data = await api.getProducts();
@@ -261,24 +505,24 @@ export default function POS() {
   }, [success, lastSale, cart, processing, paymentMethod, cashReceived, totals.total, transactionReference]);
 
   return (
-    <div className="flex h-full overflow-hidden bg-[#E5E7EB]">
+    <div className="flex h-full overflow-hidden bg-[#E5E7EB] relative">
       {/* Product Catalog */}
-      <div className="flex-1 flex flex-col p-4 overflow-hidden">
-        <div className="flex items-center justify-between mb-4 gap-4">
-          <div className="flex-1 relative group">
+      <div className="flex-1 flex flex-col p-2 md:p-4 overflow-hidden w-full">
+        <div className="flex flex-col sm:flex-row items-center justify-between mb-4 gap-3">
+          <div className="w-full sm:flex-1 relative group">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors" size={18} />
             <input 
               ref={searchInputRef}
               type="text" 
-              placeholder="SCAN BARCODE OR SEARCH TOOLS... (ALT+S)"
-              className="w-full pl-10 pr-4 py-2 bg-white border border-gray-300 rounded shadow-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none text-xs font-black uppercase tracking-widest placeholder:text-gray-300 transition-all font-mono"
+              placeholder="SCAN OR SEARCH... (ALT+S)"
+              className="w-full pl-10 pr-4 py-2 bg-white border border-gray-300 rounded shadow-sm focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none text-[10px] sm:text-xs font-black uppercase tracking-widest placeholder:text-gray-300 transition-all font-mono"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
           <button 
             onClick={() => searchInputRef.current?.focus()}
-            className="flex items-center gap-2 px-3 py-2 bg-gray-800 text-white rounded font-black text-[10px] uppercase tracking-widest hover:bg-black transition-colors shadow-sm active:translate-y-0.5"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-3 py-2 bg-gray-800 text-white rounded font-black text-[10px] uppercase tracking-widest hover:bg-black transition-colors shadow-sm active:translate-y-0.5 whitespace-nowrap"
             title="Click to focus scanner input"
           >
             <Barcode size={14} className="text-orange-500" />
@@ -294,7 +538,7 @@ export default function POS() {
                 key={s.id}
                 onClick={() => {
                   if (cart.length > 0) {
-                    if (confirm("You have items in your current cart. Loading a suspended cart will merge or replace. We recommend you hold your current cart first! Proceed anyway?")) {
+                    if (confirm("You have items in your current cart. Merging suspended cart. Proceed?")) {
                       resumeCart(s.id);
                     }
                   } else {
@@ -304,14 +548,14 @@ export default function POS() {
                 className="flex items-center gap-2 px-3 py-1.5 bg-yellow-100 border border-yellow-300 rounded text-[9px] font-black text-yellow-800 uppercase tracking-widest hover:bg-yellow-200 transition-colors flex-shrink-0 shadow-sm"
               >
                 <Play size={12} />
-                Recall Cart #{s.id.toUpperCase()} ({s.cart.length} items)
+                #{s.id.toUpperCase()} ({s.cart.length})
               </button>
             ))}
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+        <div className="flex-1 overflow-y-auto pr-1 md:pr-2 custom-scrollbar">
+          <div className="grid grid-cols-2 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-3">
             {filteredProducts.map((product) => (
               <motion.button
                 key={product.id}
@@ -323,28 +567,28 @@ export default function POS() {
                   product.stockQuantity <= 0 && "opacity-50 grayscale pointer-events-none"
                 )}
               >
-                <div className="aspect-square bg-gray-50 flex items-center justify-center border-b border-gray-100 p-4 relative overflow-hidden text-gray-200">
-                   <Package size={48} strokeWidth={1} />
-                   <div className="absolute top-1 right-1 px-1.5 py-0.5 bg-gray-100 text-[8px] font-black uppercase text-gray-500 rounded border border-gray-200">
+                <div className="aspect-square bg-gray-50 flex items-center justify-center border-b border-gray-100 p-2 sm:p-4 relative overflow-hidden text-gray-200">
+                   <Package size={32} md:size={48} strokeWidth={1} />
+                   <div className="absolute top-1 right-1 px-1 py-0.5 bg-gray-100/80 backdrop-blur-sm text-[7px] sm:text-[8px] font-black uppercase text-gray-500 rounded border border-gray-200">
                      {product.category || 'GEN'}
                    </div>
                    {product.stockQuantity <= (product.minStockLevel || 5) && product.stockQuantity > 0 && (
-                     <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-red-100 text-[8px] font-black uppercase text-red-600 rounded border border-red-200 animate-pulse">
-                       Low Stock
+                     <div className="absolute top-1 left-1 px-1 py-0.5 bg-red-100/80 backdrop-blur-sm text-[7px] sm:text-[8px] font-black uppercase text-red-600 rounded border border-red-200 animate-pulse">
+                       Low
                      </div>
                    )}
                    {product.stockQuantity <= 0 && (
-                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                        <span className="bg-red-600 text-white text-[10px] font-black px-2 py-1 rounded uppercase tracking-widest">Out of Stock</span>
+                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center p-2">
+                        <span className="bg-red-600 text-white text-[8px] sm:text-[10px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest text-center">Out of Stock</span>
                      </div>
                    )}
                 </div>
-                <div className="p-2 border-t border-gray-100">
-                  <div className="text-[10px] font-mono text-gray-400 font-bold mb-0.5 uppercase tracking-tighter truncate">{product.sku}</div>
-                  <div className="font-black text-[10px] text-gray-900 uppercase leading-none h-6 mb-2 line-clamp-2">{product.name}</div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-black text-orange-600 font-mono">{formatCurrency(product.price)}</span>
-                    <span className="text-[8px] font-black text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100 uppercase">
+                <div className="p-1.5 sm:p-2 border-t border-gray-100">
+                  <div className="text-[8px] sm:text-[10px] font-mono text-gray-400 font-bold mb-0.5 uppercase tracking-tighter truncate">{product.sku}</div>
+                  <div className="font-black text-[9px] sm:text-[10px] text-gray-900 uppercase leading-none h-5 sm:h-6 mb-1 sm:mb-2 line-clamp-2">{product.name}</div>
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="text-xs sm:text-sm font-black text-orange-600 font-mono">{formatCurrency(product.price)}</span>
+                    <span className="text-[7px] sm:text-[8px] font-black text-gray-400 bg-gray-50 px-1 py-0.5 rounded border border-gray-100 uppercase overflow-hidden text-ellipsis whitespace-nowrap">
                       {product.stockQuantity} {product.unit}
                     </span>
                   </div>
@@ -353,228 +597,107 @@ export default function POS() {
             ))}
           </div>
         </div>
-      </div>
 
-      {/* Checkout Sidebar */}
-      <div className="w-[380px] bg-white border-l border-gray-300 flex flex-col shadow-2xl relative z-10">
-        <div className="p-4 border-b border-gray-300 bg-gray-50 flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-gray-800">
-              <div className="w-8 h-8 bg-gray-800 rounded flex items-center justify-center text-orange-500">
-                <ShoppingCart size={16} />
-              </div>
-              <h2 className="font-black text-xs uppercase tracking-widest leading-none">Transaction Cart</h2>
-            </div>
-            <span className="text-[10px] font-mono font-black bg-gray-200 px-2 py-1 rounded text-gray-600 uppercase">
-              Items: {cart.reduce((s,i) => s + i.quantity, 0)}
-            </span>
-          </div>
-          
-          <div className="flex gap-2">
-            <button 
-              disabled={cart.length === 0}
-              onClick={suspendCart}
-              className="flex-1 px-2 py-1.5 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded text-[9px] font-black uppercase tracking-widest hover:bg-yellow-100 disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-1.5 transition-colors shadow-sm"
-              title="Alt + H"
-            >
-              <Pause size={10} /> Suspend (ALT+H)
-            </button>
-            <button 
-              disabled={cart.length === 0}
-              onClick={clearCart}
-              className="flex-1 px-2 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded text-[9px] font-black uppercase tracking-widest hover:bg-red-100 disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-1.5 transition-colors shadow-sm"
-              title="Alt + V"
-            >
-              <Trash2 size={10} /> Void (ALT+V)
-            </button>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar bg-gray-50/50">
-          <AnimatePresence>
-            {cart.map((item) => (
-              <motion.div
-                key={item.id}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="bg-white p-2 border border-gray-200 rounded shadow-sm group hover:border-orange-500 transition-colors"
-              >
-                <div className="flex gap-3">
-                  <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center text-gray-400 flex-shrink-0 group-hover:bg-gray-800 group-hover:text-orange-500 transition-colors">
-                    <Package size={18} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[9px] font-mono text-gray-400 uppercase leading-none mb-1">{item.sku}</div>
-                    <div className="font-black text-[10px] text-gray-900 uppercase leading-tight truncate mb-1">{item.name}</div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1">
-                        <button 
-                          onClick={() => updateQuantity(item.id!, -1)}
-                          className="p-1 hover:bg-gray-100 text-gray-500 rounded border border-gray-100"
-                        >
-                          <Minus size={10} />
-                        </button>
-                        <span className="font-mono text-xs font-black min-w-[24px] text-center">{item.quantity}</span>
-                        <button 
-                          onClick={() => updateQuantity(item.id!, 1)}
-                          className="p-1 hover:bg-gray-100 text-gray-500 rounded border border-gray-100"
-                        >
-                          <Plus size={10} />
-                        </button>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-[10px] font-mono font-black text-orange-600">{formatCurrency(item.price * item.quantity)}</div>
-                        <button 
-                          onClick={() => removeFromCart(item.id!)}
-                          className="text-[8px] font-black text-gray-400 hover:text-red-600 uppercase tracking-widest mt-1"
-                        >
-                          Remove Line
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-          {cart.length === 0 && (
-            <div className="h-full flex flex-col items-center justify-center text-gray-300 opacity-50 py-20 pointer-events-none">
-              <ShoppingCart size={48} strokeWidth={1} className="mb-4" />
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-center w-40">Cart is currently empty. Awaiting SKU entry.</p>
-            </div>
-          )}
-        </div>
-
-        <div className="p-4 bg-gray-800 text-white shadow-2xl space-y-4">
-          <div className="space-y-1.5 border-b border-gray-700 pb-4">
-            <div className="flex justify-between text-[11px] font-mono text-gray-400">
-              <span className="uppercase font-bold">Subtotal</span>
-              <span>{formatCurrency(totals.rawSubtotal)}</span>
-            </div>
-            
-            <div className="flex items-center justify-between text-[11px] font-mono text-orange-400">
-               <span className="uppercase font-black flex items-center gap-1.5"><Tag size={12} /> Discount (-$)</span>
-               <input 
-                 type="number"
-                 placeholder="0.00"
-                 disabled={cart.length === 0}
-                 value={discountAmount}
-                 onChange={(e) => setDiscountAmount(e.target.value)}
-                 className="w-24 bg-gray-900 border border-gray-600 text-white text-right px-2 py-1 rounded outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 disabled:opacity-50"
-               />
-            </div>
-
-            <div className="flex justify-between text-[11px] font-mono text-gray-400">
-              <span className="uppercase font-bold">Tax (VAT 12%)</span>
-              <span>{formatCurrency(totals.tax)}</span>
-            </div>
-            <div className="flex justify-between items-end pt-2">
-              <span className="text-[10px] font-black uppercase tracking-widest text-white">Grand Total</span>
-              <span className="text-3xl font-black font-mono leading-none tracking-tighter text-orange-500">
-                {formatCurrency(totals.total)}
-              </span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => setPaymentMethod('cash')}
-              className={cn(
-                "flex flex-col items-center justify-center p-3 rounded border transition-all gap-1",
-                paymentMethod === 'cash' 
-                  ? "bg-orange-600 border-orange-400 text-white" 
-                  : "bg-gray-700 border-gray-600 text-gray-400 hover:bg-gray-650"
-              )}
-              title="Alt + C"
-            >
-              <Banknote size={18} />
-              <span className="text-[9px] font-black uppercase tracking-widest font-mono">Cash (ALT+C)</span>
-            </button>
-            <button
-              onClick={() => setPaymentMethod('card')}
-              className={cn(
-                "flex flex-col items-center justify-center p-3 rounded border transition-all gap-1",
-                paymentMethod === 'card' 
-                  ? "bg-orange-600 border-orange-400 text-white" 
-                  : "bg-gray-700 border-gray-600 text-gray-400 hover:bg-gray-650"
-              )}
-              title="Alt + K"
-            >
-              <CreditCard size={18} />
-              <span className="text-[9px] font-black uppercase tracking-widest font-mono text-center overflow-visible">Card/GCash (ALT+K)</span>
-            </button>
-          </div>
-
-          {paymentMethod === 'cash' && (
-            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-700">
-              <div className="space-y-1">
-                <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Cash Received</label>
-                <div className="relative">
-                  <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" size={12} />
-                  <input 
-                    ref={cashInputRef}
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    className="w-full pl-6 pr-2 py-2 bg-gray-700 border border-gray-600 rounded text-xs font-black font-mono text-white outline-none focus:border-orange-500"
-                    value={cashReceived}
-                    onChange={(e) => setCashReceived(e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Change Due</label>
-                <div className="w-full px-2 py-2 bg-gray-900 border border-gray-600 rounded text-xs font-black font-mono text-orange-400">
-                  {formatCurrency(changeAmount)}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {paymentMethod === 'card' && (
-            <div className="pt-2 border-t border-gray-700">
-              <div className="space-y-1">
-                <label className="text-[9px] font-black uppercase tracking-widest text-gray-400 flex items-center justify-between">
-                  <span>Transaction Ref / GCash No.</span>
-                  <span className="text-orange-500">*Required</span>
-                </label>
-                <div className="relative">
-                  <Hash className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" size={12} />
-                  <input 
-                    ref={cardInputRef}
-                    type="text"
-                    placeholder="Enter Reference Number..."
-                    className="w-full pl-6 pr-2 py-2 bg-gray-700 border border-gray-600 rounded text-xs font-black font-mono text-white outline-none focus:border-orange-500"
-                    value={transactionReference}
-                    onChange={(e) => setTransactionReference(e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          <button 
-            disabled={cart.length === 0 || processing || (paymentMethod === 'cash' && (parseFloat(cashReceived) || 0) < totals.total) || (paymentMethod === 'card' && !transactionReference.trim())}
-            onClick={handleCheckout}
-            className="w-full py-4 bg-white text-gray-950 rounded font-black uppercase tracking-[0.2em] text-xs hover:bg-orange-500 hover:text-white transition-all shadow-xl active:translate-y-1 flex items-center justify-center gap-3 disabled:opacity-50 disabled:grayscale disabled:pointer-events-none"
-            title="Alt + Enter"
-          >
-            {processing ? (
-              <div className="w-5 h-5 border-4 border-gray-800 border-t-orange-500 rounded-full animate-spin" />
-            ) : (
-              <>
-                <DollarSign size={18} />
-                Finalize Order (ALT+ENTER)
-              </>
-            )}
-          </button>
-          <div className="pt-2 flex items-center justify-center gap-2 opacity-50 px-2 py-1 rounded bg-black/20">
-             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-             <p className="text-[8px] font-mono font-bold uppercase text-gray-400">Offline Processing Mode Enabled</p>
-          </div>
+        {/* Mobile View Cart Button */}
+        <div className="lg:hidden p-2 bg-white border-t border-gray-300 mt-2 flex gap-2">
+           <button 
+             onClick={() => setIsCartOpen(true)}
+             className="flex-1 bg-orange-600 text-white py-3 rounded-lg font-black text-xs uppercase tracking-widest flex items-center justify-center gap-3 shadow-lg active:scale-95 transition-all"
+           >
+             <ShoppingCart size={18} />
+             View Cart ({cart.reduce((s,i) => s + i.quantity, 0)})
+             <span className="ml-auto font-mono">{formatCurrency(totals.total)}</span>
+           </button>
+           <button 
+             onClick={suspendCart}
+             disabled={cart.length === 0}
+             className="w-12 h-12 bg-gray-800 text-white rounded-lg flex items-center justify-center disabled:opacity-50"
+           >
+             <Pause size={18} />
+           </button>
         </div>
       </div>
+
+      {/* Checkout Sidebar (Desktop) */}
+      <div className="hidden lg:flex w-[380px] bg-white border-l border-gray-300 flex-col shadow-2xl relative z-10">
+        <CartContent 
+          cart={cart}
+          totals={totals}
+          updateQuantity={updateQuantity}
+          removeFromCart={removeFromCart}
+          clearCart={clearCart}
+          suspendCart={suspendCart}
+          paymentMethod={paymentMethod}
+          setPaymentMethod={setPaymentMethod}
+          cashReceived={cashReceived}
+          setCashReceived={setCashReceived}
+          transactionReference={transactionReference}
+          setTransactionReference={setTransactionReference}
+          changeAmount={changeAmount}
+          handleCheckout={handleCheckout}
+          processing={processing}
+          cashInputRef={cashInputRef}
+          cardInputRef={cardInputRef}
+          discountAmount={discountAmount}
+          setDiscountAmount={setDiscountAmount}
+        />
+      </div>
+
+      {/* Cart Modal (Mobile/Tablet) */}
+      <AnimatePresence>
+        {isCartOpen && (
+          <div className="fixed inset-0 z-[60] lg:hidden flex flex-col bg-gray-900/40 backdrop-blur-sm">
+            <motion.div 
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="mt-auto bg-white rounded-t-3xl shadow-2xl flex flex-col h-[90vh] overflow-hidden"
+            >
+              <div className="p-4 border-b border-gray-200 flex items-center justify-between shrink-0">
+                 <div className="flex items-center gap-2">
+                    <h3 className="font-black text-sm uppercase tracking-widest text-gray-900">Current Order</h3>
+                    <span className="bg-orange-100 text-orange-600 text-[10px] font-black px-2 py-0.5 rounded-full">
+                      {cart.reduce((s,i) => s + i.quantity, 0)} Items
+                    </span>
+                 </div>
+                 <button 
+                   onClick={() => setIsCartOpen(false)}
+                   className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-500"
+                 >
+                   <Trash2 size={18} className="rotate-45" />
+                 </button>
+              </div>
+              
+              <div className="flex-1 overflow-hidden">
+                <CartContent 
+                  cart={cart}
+                  totals={totals}
+                  updateQuantity={updateQuantity}
+                  removeFromCart={removeFromCart}
+                  clearCart={clearCart}
+                  suspendCart={suspendCart}
+                  paymentMethod={paymentMethod}
+                  setPaymentMethod={setPaymentMethod}
+                  cashReceived={cashReceived}
+                  setCashReceived={setCashReceived}
+                  transactionReference={transactionReference}
+                  setTransactionReference={setTransactionReference}
+                  changeAmount={changeAmount}
+                  handleCheckout={handleCheckout}
+                  processing={processing}
+                  cashInputRef={cashInputRef}
+                  cardInputRef={cardInputRef}
+                  discountAmount={discountAmount}
+                  setDiscountAmount={setDiscountAmount}
+                  isMobile
+                  onClose={() => setIsCartOpen(false)}
+                />
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Success Modal */}
       <AnimatePresence>
